@@ -10,7 +10,7 @@ const int segment_pins[8] = {6, 8, 7, 5, 3, 4, 2, 9};
 const int button_pin_times = 10;
 const int button_pin_divide = 11;
 
-// --- PATTERNS (These are const, so they are stored in Flash, not SRAM) ---
+// --- PATTERNS ---
 const byte digit_patterns[10][8] = {
   {1,1,1,1,1,1,0,0}, {0,1,1,0,0,0,0,0}, {1,1,0,1,1,0,1,0}, {1,1,1,1,0,0,1,0}, {0,1,1,0,0,1,1,0},
   {1,0,1,1,0,1,1,0}, {1,0,1,1,1,1,1,0}, {1,1,1,0,0,0,0,0}, {1,1,1,1,1,1,1,0}, {1,1,1,0,0,1,1,0}
@@ -20,13 +20,12 @@ const byte pattern_error_E[8] = {1,0,0,1,1,1,1,0};
 const byte pattern_error_r[8] = {0,0,0,0,1,0,1,0};
 const byte pattern_clear[8]   = {0,0,1,1,1,0,0,0};
 const byte pattern_blank[8]   = {0,0,0,0,0,0,0,0};
-const byte pattern_op_add[8]    = {1,0,0,0,0,0,0,0};
-const byte pattern_op_subtract[8]= {0,0,0,0,0,0,1,0};
-const byte pattern_op_multiply[8]= {0,0,0,1,0,0,0,0};
-const byte pattern_op_divide[8]  = {0,0,1,0,0,0,0,0};
+const byte pattern_op_add[8]    = {1,0,0,0,0,0,0,0}; 
+const byte pattern_op_subtract[8]= {0,0,0,0,0,0,1,0}; 
+const byte pattern_op_multiply[8]= {0,0,0,1,0,0,0,0}; 
+const byte pattern_op_divide[8]  = {0,0,1,0,0,0,0,0}; 
 // --- END PATTERNS ---
 
-// Calculator state variables
 char num1_str[12]; 
 char num2_str[12]; 
 char current_operator = 0; 
@@ -35,56 +34,84 @@ int num2_len = 0;
 
 enum CalcState { INPUT_NUM1, INPUT_OPERATOR_AWAIT_NUM2, INPUT_NUM2, DISPLAY_RESULT, DISPLAY_ERROR };
 CalcState current_calc_state = INPUT_NUM1; 
-// For state_names, the strings themselves are in Flash. The array of pointers is in SRAM.
-const char* const state_names[] PROGMEM = {"INPUT_NUM1", "INPUT_OPERATOR_AWAIT_NUM2", "INPUT_NUM2", "DISPLAY_RESULT", "DISPLAY_ERROR"};
+const char* const state_names[] PROGMEM = {
+  "INPUT_NUM1", "INPUT_OPERATOR_AWAIT_NUM2", "INPUT_NUM2", "DISPLAY_RESULT", "DISPLAY_ERROR"
+};
 
-
-// Display timing variables
 unsigned long timed_display_end_time = 0;
 bool is_timed_display_active = false;
 byte current_display_pattern[8]; 
-
-// For result display sequence
 char result_str[12];
 int result_char_idx = 0;
 bool result_display_on_phase = false; 
 unsigned long next_result_action_time = 0;
-
-// Debouncing for Uno's local buttons
 int last_button_state_times = LOW;
 int last_button_state_divide = LOW;
 unsigned long last_uno_debounce_time = 0;
 const unsigned long debounce_delay = 50;
 
 // Helper function to print PROGMEM strings
-void printPgmStr(const char* str) {
-  char buffer[30]; // Adjust buffer size as needed for the longest state name
-  strcpy_P(buffer, str);
-  Serial.print(buffer);
+void printPgmString(PGM_P s) {
+  char c;
+  if (!s) { Serial.print(F("[NULL_PGM_STR]")); return; }
+  uint16_t i = 0;
+  byte first_byte = pgm_read_byte(s);
+  if (first_byte == 0 || first_byte == 0xFF ) { 
+     if (first_byte == 0) Serial.print(F("[EMPTY_PGM_STR]"));
+     else Serial.print(F("[BLANK_FLASH_PGM_STR?]"));
+     return;
+  }
+  
+  while ((c = pgm_read_byte(s + i))) {
+    Serial.print(c);
+    i++;
+    if (i > 60) { 
+      Serial.print(F("[PGM_STR_TOO_LONG]"));
+      break;
+    }
+  }
 }
 
 void print_current_state() {
     Serial.print(F("Current State: "));
-    // To print PROGMEM string from an array of PROGMEM strings:
-    char buffer[30]; // Make sure buffer is large enough
-    strcpy_P(buffer, (char*)pgm_read_ptr(&(state_names[current_calc_state])));
-    Serial.println(buffer);
+    if (current_calc_state >= 0 && current_calc_state < (sizeof(state_names) / sizeof(state_names[0]))) {
+        PGM_P state_name_ptr = (PGM_P)pgm_read_ptr(&(state_names[current_calc_state]));
+        printPgmString(state_name_ptr);
+    } else {
+        Serial.print(F("[INVALID_STATE_INDEX:")); Serial.print((int)current_calc_state); Serial.print(F("]"));
+    }
+    Serial.println();
 }
 
 void set_calc_state(CalcState new_state) {
     if (current_calc_state != new_state) {
+        CalcState old_state = current_calc_state;
         current_calc_state = new_state;
-        Serial.print(F("DEBUG: State changed to -> "));
-        char buffer[30];
-        strcpy_P(buffer, (char*)pgm_read_ptr(&(state_names[current_calc_state])));
-        Serial.println(buffer);
+        Serial.print(F("DEBUG: State changed from '"));
+        if (old_state >= 0 && old_state < (sizeof(state_names) / sizeof(state_names[0]))) {
+             PGM_P old_state_name_ptr = (PGM_P)pgm_read_ptr(&(state_names[old_state]));
+             printPgmString(old_state_name_ptr);
+        } else {
+            Serial.print(F("UNKNOWN_OLD_STATE"));
+        }
+        Serial.print(F("' to -> '"));
+
+        if (new_state == INPUT_OPERATOR_AWAIT_NUM2) { // Diagnostic from previous step
+            Serial.print(F("INPUT_OPERATOR_AWAIT_NUM2 (Print logic modified for test)"));
+        } else if (new_state >= 0 && new_state < (sizeof(state_names) / sizeof(state_names[0]))) {
+            PGM_P new_state_name_ptr = (PGM_P)pgm_read_ptr(&(state_names[new_state]));
+            printPgmString(new_state_name_ptr);
+        } else {
+            Serial.print(F("[INVALID_NEW_STATE_INDEX:")); Serial.print((int)new_state); Serial.print(F("]"));
+        }
+        Serial.println(F("'"));
     }
 }
 
 void setup() {
   Serial.begin(9600); 
   while (!Serial); 
-  Serial.println(F("Uno Calculator Starting..."));
+  Serial.println(F("Uno Calculator Starting... (Code Version: May 25 - Full Debug)")); // Updated version marker
   Serial.println(F("DEBUG: Initializing Pins and I2C..."));
 
   Wire.begin(); 
@@ -98,6 +125,15 @@ void setup() {
   pinMode(button_pin_divide, INPUT); 
   Serial.println(F("DEBUG: Local button pins initialized."));
 
+  Serial.println(F("DEBUG: Testing PROGMEM state_names printing at startup:"));
+  for (int i = 0; i < (sizeof(state_names) / sizeof(state_names[0])); i++) {
+    Serial.print(F("  State [")); Serial.print(i); Serial.print(F("]: '"));
+    PGM_P name_ptr = (PGM_P)pgm_read_ptr(&(state_names[i]));
+    printPgmString(name_ptr);
+    Serial.println(F("'"));
+  }
+  Serial.println(F("DEBUG: PROGMEM state_names test complete."));
+
   reset_calculator(); 
   Serial.println(F("Uno Calculator Ready and Reset."));
   print_current_state();
@@ -105,15 +141,14 @@ void setup() {
 
 void loop() {
   handle_timed_display();
-  check_local_buttons();
-  check_nano_input();
+  check_local_buttons();    // These functions are now defined below
+  check_nano_input();       // These functions are now defined below
 
   if (current_calc_state == DISPLAY_RESULT) {
-    handle_result_display();
+    handle_result_display();  // This function is now defined below
   } else if (current_calc_state == DISPLAY_ERROR) {
     // Error display is currently blocking
   }
-  
   update_physical_display();
 }
 
@@ -124,7 +159,7 @@ void update_physical_display() {
 }
 
 void show_pattern_timed(const byte pattern[8], unsigned long duration_ms) {
-  Serial.print(F("DEBUG: show_pattern_timed called. Pattern[0]: ")); Serial.print(pattern[0]); 
+  Serial.print(F("DEBUG: show_pattern_timed called. Pattern[0] (seg 'a'): ")); Serial.print(pattern[0]); 
   Serial.print(F(", Duration: ")); Serial.println(duration_ms);
   for(int i=0; i<8; i++) current_display_pattern[i] = pattern[i];
   timed_display_end_time = millis() + duration_ms;
@@ -147,7 +182,7 @@ void reset_calculator() {
   num1_len = 0;
   num2_len = 0;
   current_operator = 0;
-  set_calc_state(INPUT_NUM1); // This will print the new state
+  set_calc_state(INPUT_NUM1);
   is_timed_display_active = false; 
   for(int i=0; i<8; i++) current_display_pattern[i] = pattern_blank[i]; 
   Serial.println(F("DEBUG: Calculator reset complete."));
@@ -155,7 +190,7 @@ void reset_calculator() {
 
 void append_digit(char digit) {
   Serial.print(F("DEBUG: append_digit called with '")); Serial.print(digit); Serial.println(F("'"));
-  // print_current_state(); // State is printed by set_calc_state if it changes
+  print_current_state();
 
   if (is_timed_display_active && current_calc_state != DISPLAY_RESULT && current_calc_state != DISPLAY_ERROR) {
       Serial.println(F("DEBUG: append_digit - timed display active, returning."));
@@ -186,7 +221,7 @@ void append_digit(char digit) {
 
 void set_operator(char op_char) {
    Serial.print(F("DEBUG: set_operator called with '")); Serial.print(op_char); Serial.println(F("'"));
-   // print_current_state(); // State is printed by set_calc_state
+   print_current_state();
 
    if (is_timed_display_active && current_calc_state != DISPLAY_RESULT && current_calc_state != DISPLAY_ERROR) {
       Serial.println(F("DEBUG: set_operator - timed display active, returning."));
@@ -196,42 +231,21 @@ void set_operator(char op_char) {
   if (num1_len > 0) { 
       if (current_calc_state == INPUT_NUM1 && num1_len > 0) {
         current_operator = op_char;
-        set_calc_state(INPUT_OPERATOR_AWAIT_NUM2);
-        Serial.print(F("DEBUG: Operator stored: ")); Serial.println(current_operator);
-        switch (op_char) {
-          case '+': show_pattern_timed(pattern_op_add, 1000); break;
-          case '-': show_pattern_timed(pattern_op_subtract, 1000); break;
-          case '*': show_pattern_timed(pattern_op_multiply, 1000); break;
-          case '/': show_pattern_timed(pattern_op_divide, 1000); break;
-        }
-      } else if (current_calc_state == INPUT_NUM2 && num2_len > 0) { // Also allow changing operator if num2 has started
-        Serial.println(F("DEBUG: set_operator - Operator changed/set after num2 input started."));
+        set_calc_state(INPUT_OPERATOR_AWAIT_NUM2); 
+        Serial.print(F("DEBUG: Operator stored: ")); Serial.println(current_operator); 
+        Serial.println(F("DEBUG: Operator display on 7-seg temporarily SKIPPED for testing."));
+      } else if ( (current_calc_state == INPUT_NUM2 && num2_len > 0) || (current_calc_state == INPUT_OPERATOR_AWAIT_NUM2) ) { 
+        Serial.println(F("DEBUG: set_operator - Operator changed/set after num1."));
         current_operator = op_char;
         set_calc_state(INPUT_OPERATOR_AWAIT_NUM2); 
-        num2_str[0] = '\0'; // Clear num2 as operator changed, expect new num2
+        num2_str[0] = '\0'; 
         num2_len = 0;
         Serial.print(F("DEBUG: Operator changed to: ")); Serial.println(current_operator);
         Serial.println(F("DEBUG: num2 cleared, awaiting new num2."));
-         switch (op_char) { 
-          case '+': show_pattern_timed(pattern_op_add, 1000); break;
-          case '-': show_pattern_timed(pattern_op_subtract, 1000); break;
-          case '*': show_pattern_timed(pattern_op_multiply, 1000); break;
-          case '/': show_pattern_timed(pattern_op_divide, 1000); break;
-        }
-      } else if (current_calc_state == INPUT_OPERATOR_AWAIT_NUM2) { // Allow changing operator if already waiting for num2
-        Serial.println(F("DEBUG: set_operator - Operator changed while awaiting num2."));
-        current_operator = op_char;
-        // State remains INPUT_OPERATOR_AWAIT_NUM2
-        Serial.print(F("DEBUG: Operator changed to: ")); Serial.println(current_operator);
-         switch (op_char) { 
-          case '+': show_pattern_timed(pattern_op_add, 1000); break;
-          case '-': show_pattern_timed(pattern_op_subtract, 1000); break;
-          case '*': show_pattern_timed(pattern_op_multiply, 1000); break;
-          case '/': show_pattern_timed(pattern_op_divide, 1000); break;
-        }
+        Serial.println(F("DEBUG: Operator display on 7-seg temporarily SKIPPED for testing."));
       } else {
-        Serial.println(F("DEBUG: set_operator - Condition not met to set operator cleanly. State:"));
-        print_current_state();
+        Serial.println(F("DEBUG: set_operator - Condition not met to set operator cleanly. Current State:"));
+        print_current_state(); 
       }
   } else {
       Serial.println(F("DEBUG: set_operator - num1_len is 0. Cannot set operator yet."));
@@ -240,8 +254,7 @@ void set_operator(char op_char) {
 
 void do_backspace() {
   Serial.println(F("DEBUG: do_backspace called."));
-  // print_current_state(); // State is printed by set_calc_state if it changes
-
+  print_current_state();
   if (is_timed_display_active && current_calc_state != DISPLAY_RESULT && current_calc_state != DISPLAY_ERROR) {
       Serial.println(F("DEBUG: do_backspace - timed display active, returning."));
       return;
@@ -267,15 +280,14 @@ void do_backspace() {
 
 void calculate_result() {
   Serial.println(F("DEBUG: calculate_result called."));
-  // print_current_state(); // State changes to DISPLAY_RESULT or DISPLAY_ERROR
-
+  print_current_state();
   if (is_timed_display_active && current_calc_state != DISPLAY_RESULT && current_calc_state != DISPLAY_ERROR) {
-      Serial.println(F("DEBUG: calculate_result - timed display active, returning."));
-      return;
-  }
+      Serial.println(F("DEBUG: calculate_result - timed display active, returning.")); // This was the line from the error
+      return; // Ensure return is here if the condition is met
+  } // Make sure this '}' matches the 'if' above
 
   if (num1_len == 0 || num2_len == 0 || current_operator == 0) {
-    Serial.print(F("DEBUG: Error in calculate_result - Incomplete expression. num1: '")); Serial.print(num1_str);
+    Serial.print(F("DEBUG: Error in calculate_result - Incomplete. num1: '")); Serial.print(num1_str);
     Serial.print(F("', op: '")); Serial.print(current_operator); Serial.print(F("', num2: '")); Serial.print(num2_str); Serial.println(F("'"));
     start_error_sequence(); 
     return;
@@ -286,9 +298,7 @@ void calculate_result() {
   long res_val = 0; 
   bool error_flag = false;
 
-  Serial.print(F("DEBUG: Calculating: num1_str='")); Serial.print(num1_str); Serial.print(F("' (val1=")); Serial.print(val1);
-  Serial.print(F("), op='")); Serial.print(current_operator); Serial.print(F("', num2_str='")); Serial.print(num2_str);
-  Serial.print(F("' (val2=")); Serial.print(val2); Serial.println(F(")"));
+  Serial.print(F("DEBUG: Calculating: ")); Serial.print(val1); Serial.print(current_operator); Serial.print(val2); Serial.println();
 
   switch (current_operator) {
     case '+': res_val = val1 + val2; break;
@@ -310,11 +320,11 @@ void calculate_result() {
     start_error_sequence();
   } else {
     ltoa(res_val, result_str, 10); 
-    Serial.print(F("DEBUG: Calculation successful. Result (long): ")); Serial.print(res_val);
-    Serial.print(F(", Result (string): '")); Serial.print(result_str); Serial.println(F("'"));
+    Serial.print(F("DEBUG: Result (long): ")); Serial.print(res_val);
+    Serial.print(F(", Result (str): '")); Serial.print(result_str); Serial.println(F("'"));
     start_result_display_sequence();
   }
-}
+} // This is the closing brace for calculate_result
 
 void start_result_display_sequence() {
   Serial.println(F("DEBUG: start_result_display_sequence called."));
@@ -363,7 +373,7 @@ void start_error_sequence() {
 
     for(int i=0; i<8; i++) current_display_pattern[i] = pattern_error_E[i];
     update_physical_display(); 
-    delay(1000); // Delay is okay in error sequence as it's an exceptional state
+    delay(1000); 
     for(int i=0; i<8; i++) current_display_pattern[i] = pattern_blank[i];
     update_physical_display();
     delay(500);
@@ -444,13 +454,12 @@ void check_nano_input() {
           case '=': 
             Serial.println(F("DEBUG: Equals (=) received from Nano."));
             if ((current_calc_state == INPUT_NUM2 && num2_len > 0) || 
-                (current_calc_state == INPUT_OPERATOR_AWAIT_NUM2 && num2_len > 0) ) { // Ensure num2 has some content
+                (current_calc_state == INPUT_OPERATOR_AWAIT_NUM2 && num2_len > 0 && num1_len > 0) ) { // Ensure num1 also has content for op await
                  calculate_result();
             } else {
                  Serial.print(F("DEBUG: Equals pressed but conditions not met. State: "));
-                 char buffer[30];
-                 strcpy_P(buffer, (char*)pgm_read_ptr(&(state_names[current_calc_state])));
-                 Serial.print(buffer);
+                 print_current_state(); 
+                 Serial.print(F(", num1_len: ")); Serial.print(num1_len);
                  Serial.print(F(", num2_len: ")); Serial.println(num2_len);
             }
             break;
