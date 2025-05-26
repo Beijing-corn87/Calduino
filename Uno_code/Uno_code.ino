@@ -1,9 +1,13 @@
 #include <Wire.h>
+<<<<<<< Updated upstream
 #include <LiquidCrystal.h> // Include the LCD library
+=======
+#include <LiquidCrystal.h>
+>>>>>>> Stashed changes
 
-// Nano's I2C Address
 #define NANO_SLAVE_ADDRESS 0x08
 
+<<<<<<< Updated upstream
 // LCD Pin Configuration (as per your specification)
 // RS: D2, E: D3, D4: D4, D5: D5, D6: D6, D7: D7
 const int rs = 2, en = 3, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
@@ -15,22 +19,40 @@ const int button_pin_divide = 11;
 
 // Calculator state variables
 char num1_str[17]; // Increased size slightly for potential full line on LCD + null
+=======
+const int rs = 2, en = 3, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+const int button_pin_times = 10;
+const int button_pin_divide = 11;
+
+char num1_str[17]; 
+>>>>>>> Stashed changes
 char num2_str[17]; 
 char current_operator = 0; 
 int num1_len = 0;
 int num2_len = 0;
+<<<<<<< Updated upstream
 char result_str[17]; // For the result
 String lcd_error_message = ""; // For displaying errors on LCD
+=======
+char result_str[17]; 
+char lcd_error_message_char[17]; 
+>>>>>>> Stashed changes
 
 enum CalcState { INPUT_NUM1, INPUT_OPERATOR_AWAIT_NUM2, INPUT_NUM2, DISPLAY_RESULT, DISPLAY_ERROR };
 CalcState current_calc_state = INPUT_NUM1; 
 
+<<<<<<< Updated upstream
 // Debouncing for Uno's local buttons
+=======
+>>>>>>> Stashed changes
 int last_button_state_times = LOW;
 int last_button_state_divide = LOW;
 unsigned long last_uno_debounce_time = 0;
 const unsigned long debounce_delay = 50;
 
+<<<<<<< Updated upstream
 // Function to print current state name using a switch (for Serial debugging)
 void print_current_state_debug() {
     Serial.print(F("Current State: "));
@@ -78,6 +100,18 @@ void update_lcd() {
   String line1 = "";
   line1 += num1_str;
 
+=======
+void set_calc_state(CalcState new_state) {
+    if (current_calc_state != new_state) {
+        current_calc_state = new_state;
+    }
+}
+
+void update_lcd() {
+  lcd.clear();
+  lcd.setCursor(0, 0); 
+  lcd.print(num1_str); 
+>>>>>>> Stashed changes
   if (current_operator != 0 && num1_len > 0) {
     line1 += current_operator;
     // Only show num2 if it has content or we are actively inputting it (or expecting it)
@@ -85,6 +119,7 @@ void update_lcd() {
       line1 += num2_str;
     }
   }
+<<<<<<< Updated upstream
   lcd.print(line1.substring(0, 16)); // Print first 16 chars of expression
 
   lcd.setCursor(0, 1); // Set cursor to the beginning of the second line
@@ -92,14 +127,19 @@ void update_lcd() {
     String line2 = "=";
     line2 += result_str;
     lcd.print(line2.substring(0, 16));
+=======
+  lcd.setCursor(0, 1); 
+  if (current_calc_state == DISPLAY_RESULT) {
+    lcd.print("="); lcd.print(result_str); 
+>>>>>>> Stashed changes
   } else if (current_calc_state == DISPLAY_ERROR) {
     lcd.print(lcd_error_message.substring(0, 16));
   }
   // If just inputting, line 2 remains blank
 }
 
-
 void setup() {
+<<<<<<< Updated upstream
   Serial.begin(9600); 
   while (!Serial); 
   Serial.println(F("Uno Calculator Starting... (LCD Version)"));
@@ -121,6 +161,16 @@ void setup() {
   print_current_state_debug();
   delay(1000); // Show boot message for a bit
   update_lcd(); // Initial display
+=======
+  lcd.begin(16, 2); 
+  lcd.print(F("Calculator")); 
+  Wire.begin(); 
+  pinMode(button_pin_times, INPUT);  
+  pinMode(button_pin_divide, INPUT); 
+  reset_calculator(); 
+  delay(500); 
+  update_lcd(); 
+>>>>>>> Stashed changes
 }
 
 void loop() {
@@ -131,6 +181,7 @@ void loop() {
   // LCD is updated directly by action functions
 }
 
+<<<<<<< Updated upstream
 
 void reset_calculator() {
   Serial.println(F("DEBUG: reset_calculator called."));
@@ -150,12 +201,23 @@ void append_digit(char digit) {
   Serial.print(F("DEBUG: append_digit called with '")); Serial.print(digit); Serial.println(F("'"));
   print_current_state_debug();
 
+=======
+void reset_calculator() {
+  num1_str[0] = '\0'; num2_str[0] = '\0'; result_str[0] = '\0';
+  num1_len = 0; num2_len = 0; current_operator = 0;
+  lcd_error_message_char[0] = '\0'; 
+  set_calc_state(INPUT_NUM1);
+  update_lcd(); 
+}
+
+void append_digit(char digit) {
+>>>>>>> Stashed changes
   if (current_calc_state == DISPLAY_RESULT || current_calc_state == DISPLAY_ERROR) {
     // If result or error is shown, first key press should clear for new input
     reset_calculator();
   }
-
   if (current_calc_state == INPUT_NUM1) {
+<<<<<<< Updated upstream
     if (num1_len < (sizeof(num1_str) - 2)) { // Leave space for null
       num1_str[num1_len++] = digit;
       num1_str[num1_len] = '\0';
@@ -262,10 +324,73 @@ void start_error_sequence(String msg = "Error!") {
     update_lcd(); 
     delay(2000); // Show error for 2 seconds
     lcd_error_message = ""; 
+=======
+    if (num1_len < (sizeof(num1_str) - 1)) { 
+      num1_str[num1_len++] = digit; num1_str[num1_len] = '\0';
+    }
+  } else if (current_calc_state == INPUT_OPERATOR_AWAIT_NUM2 || current_calc_state == INPUT_NUM2) {
+    set_calc_state(INPUT_NUM2); 
+    if (num2_len < (sizeof(num2_str) - 1)) { 
+      num2_str[num2_len++] = digit; num2_str[num2_len] = '\0';
+    }
+  }
+  update_lcd();
+}
+
+void set_operator(char op_char) {
+  if (current_calc_state == DISPLAY_RESULT || current_calc_state == DISPLAY_ERROR) {
+    if (strlen(result_str) > 0 && current_calc_state == DISPLAY_RESULT) {
+        strncpy(num1_str, result_str, sizeof(num1_str)-1); num1_str[sizeof(num1_str)-1] = '\0';
+        num1_len = strlen(num1_str);
+        num2_str[0] = '\0'; num2_len = 0; result_str[0] = '\0'; 
+    } else {
+        reset_calculator(); 
+        if (num1_len == 0) { update_lcd(); return; }
+    }
+  }
+  if (num1_len > 0) { 
+      if (current_calc_state == INPUT_NUM2 && num2_len > 0) {
+          calculate_result(); 
+          if (current_calc_state == DISPLAY_RESULT) { 
+              strncpy(num1_str, result_str, sizeof(num1_str)-1); num1_str[sizeof(num1_str)-1] = '\0';
+              num1_len = strlen(num1_str);
+              num2_str[0] = '\0'; num2_len = 0; result_str[0] = '\0';
+          } else { return; }
+      }
+      current_operator = op_char;
+      set_calc_state(INPUT_OPERATOR_AWAIT_NUM2); 
+  }
+  update_lcd();
+}
+
+void do_backspace() {
+  if (current_calc_state == DISPLAY_RESULT || current_calc_state == DISPLAY_ERROR) {
+      reset_calculator(); return;
+  }
+  if (current_calc_state == INPUT_NUM2 && num2_len > 0) {
+    num2_len--; num2_str[num2_len] = '\0';
+  } else if (current_calc_state == INPUT_OPERATOR_AWAIT_NUM2 || (current_calc_state == INPUT_NUM2 && num2_len == 0) ) {
+    current_operator = 0; set_calc_state(INPUT_NUM1); 
+  } else if (current_calc_state == INPUT_NUM1 && num1_len > 0) {
+    num1_len--; num1_str[num1_len] = '\0';
+     if (num1_len == 0 && current_operator == 0) set_calc_state(INPUT_NUM1);
+  }
+  update_lcd();
+}
+
+void start_error_sequence(const __FlashStringHelper* fsh_msg) {
+    strcpy_P(lcd_error_message_char, (PGM_P)fsh_msg); 
+    lcd_error_message_char[sizeof(lcd_error_message_char)-1] = '\0';
+    set_calc_state(DISPLAY_ERROR); 
+    update_lcd(); 
+    delay(2000); 
+    lcd_error_message_char[0] = '\0'; 
+>>>>>>> Stashed changes
     reset_calculator(); 
 }
 
 void calculate_result() {
+<<<<<<< Updated upstream
   Serial.println(F("DEBUG: calculate_result called."));
   print_current_state_debug();
 
@@ -297,11 +422,31 @@ void calculate_result() {
 
   Serial.print(F("DEBUG: Calculating: ")); Serial.print(val1); Serial.print(current_operator); Serial.print(val2); Serial.println();
 
+=======
+  lcd_error_message_char[0] = '\0';
+  if (num1_len == 0 && current_operator == 0 && num2_len == 0) {
+    result_str[0] = '0'; result_str[1] = '\0';
+    set_calc_state(DISPLAY_RESULT); update_lcd(); return;
+  }
+  if (num1_len > 0 && current_operator == 0 ) { 
+      strncpy(result_str, num1_str, sizeof(result_str)-1); result_str[sizeof(result_str)-1] = '\0';
+      set_calc_state(DISPLAY_RESULT); update_lcd(); return;
+  }
+  if (num1_len == 0 || current_operator == 0 ) { 
+    start_error_sequence(F("Incomplete")); return;
+  }
+   if (num2_len == 0) { 
+      start_error_sequence(F("Need num2")); return;
+  }
+  long val1 = atol(num1_str); long val2 = atol(num2_str);
+  long res_val = 0; bool error_flag = false;
+>>>>>>> Stashed changes
   switch (current_operator) {
     case '+': res_val = val1 + val2; break;
     case '-': res_val = val1 - val2; break;
     case '*': res_val = val1 * val2; break;
     case '/':
+<<<<<<< Updated upstream
       if (val2 == 0) {
         error_flag = true;
         Serial.println(F("DEBUG: Error - Division by zero."));
@@ -320,10 +465,30 @@ void calculate_result() {
     ltoa(res_val, result_str, 10); 
     Serial.print(F("DEBUG: Result (long): ")); Serial.print(res_val);
     Serial.print(F(", Result (str): '")); Serial.print(result_str); Serial.println(F("'"));
+=======
+      if (val2 == 0) { error_flag = true; strcpy_P(lcd_error_message_char, PSTR("Div by Zero"));} 
+      else { res_val = val1 / val2; }
+      break;
+    default: error_flag = true; strcpy_P(lcd_error_message_char, PSTR("Operator Err")); break;
+  }
+  if (error_flag) {
+    if (strlen(lcd_error_message_char) > 0) {
+         // This logic is tricky if start_error_sequence expects F()
+         // Simplest: pass the specific F() string again
+         if (strcmp_P(lcd_error_message_char, PSTR("Div by Zero")) == 0) start_error_sequence(F("Div by Zero"));
+         else if (strcmp_P(lcd_error_message_char, PSTR("Operator Err")) == 0) start_error_sequence(F("Operator Err"));
+         else start_error_sequence(F("Calc Error"));
+    } else {
+         start_error_sequence(F("Calc Error"));
+    }
+  } else {
+    ltoa(res_val, result_str, 10); 
+>>>>>>> Stashed changes
     set_calc_state(DISPLAY_RESULT);
     update_lcd();
   }
 } 
+<<<<<<< Updated upstream
 
 // No handle_result_display needed as LCD updates immediately
 // No start_result_display_sequence needed in the same way
@@ -354,18 +519,34 @@ void check_local_buttons() {
     
     if (pressed_this_cycle) {
         last_uno_debounce_time = millis(); 
+=======
+
+void check_local_buttons() {
+  if ((millis() - last_uno_debounce_time) > debounce_delay) {
+    bool pressed_this_cycle = false;
+    if (digitalRead(button_pin_times) == HIGH && last_button_state_times == LOW) { 
+      set_operator('*'); pressed_this_cycle = true;
+    }
+    last_button_state_times = digitalRead(button_pin_times);
+    if (digitalRead(button_pin_divide) == HIGH && last_button_state_divide == LOW) { 
+      set_operator('/'); pressed_this_cycle = true;
+>>>>>>> Stashed changes
     }
   }
 }
 
 void check_nano_input() {
+<<<<<<< Updated upstream
   // Allow button presses even if result/error is shown
   
+=======
+>>>>>>> Stashed changes
   byte bytesReceived = Wire.requestFrom(NANO_SLAVE_ADDRESS, 1); 
 
   if (bytesReceived > 0) {
     char received_char = Wire.read();
     if (received_char != 0) { 
+<<<<<<< Updated upstream
       Serial.print(F("DEBUG: Uno received from Nano via I2C: '")); Serial.print(received_char); Serial.println(F("'"));
       last_uno_debounce_time = millis(); // Reset debounce for any action
 
@@ -399,6 +580,15 @@ void check_nano_input() {
           default:
             Serial.print(F("DEBUG: Unknown char received from Nano: '")); Serial.print(received_char); Serial.println(F("'"));
             break;
+=======
+      last_uno_debounce_time = millis(); 
+      if (received_char >= '0' && received_char <= '9') { append_digit(received_char); }
+      else {
+        switch (received_char) {
+          case '+': case '-': set_operator(received_char); break;
+          case 'B': do_backspace(); break;
+          case '=': calculate_result(); break;
+>>>>>>> Stashed changes
         }
       }
     }

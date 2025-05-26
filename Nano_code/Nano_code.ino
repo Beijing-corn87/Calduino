@@ -1,8 +1,8 @@
 #include <Wire.h>
 
-// Define the I2C slave address for the Nano
 #define NANO_SLAVE_ADDRESS 0x08
 
+<<<<<<< Updated upstream
 // Define pins for buttons 0-9
 const int button_pins_numbers[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11}; // Pins D2-D11 for 0-9
 // Define pins for other buttons
@@ -10,6 +10,13 @@ const int button_pin_add = A0;       // D12
 const int button_pin_subtract = A1;  // D13
 const int button_pin_backspace = 12; // A0
 const int button_pin_equals = 13;    // A1
+=======
+const int button_pins_numbers[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+const int button_pin_add = 12;      
+const int button_pin_subtract = 13; 
+const int button_pin_backspace = A0;
+const int button_pin_equals = A1;   
+>>>>>>> Stashed changes
 
 // Characters to send for each button
 const char button_chars_numbers[10] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
@@ -32,6 +39,10 @@ unsigned long last_debounce_time = 0;
 unsigned long debounce_delay = 50; // 50ms debounce time
 
 void setup() {
+<<<<<<< Updated upstream
+=======
+  char_to_send = 0; 
+>>>>>>> Stashed changes
   Wire.begin(NANO_SLAVE_ADDRESS);
   Wire.onRequest(requestEvent);
 
@@ -44,6 +55,7 @@ void setup() {
     pinMode(button_pins_numbers[i], INPUT); // Set as INPUT
     last_button_states_numbers[i] = LOW;    // Assume buttons are not pressed initially (pin is LOW)
   }
+<<<<<<< Updated upstream
   // Initialize other button pins
   pinMode(button_pin_add, INPUT);
   last_button_state_add = LOW;
@@ -55,6 +67,12 @@ void setup() {
   last_button_state_equals = LOW;
 
   Serial.begin(9600); // Optional: for debugging
+=======
+  pinMode(button_pin_add, INPUT); last_button_state_add = LOW;
+  pinMode(button_pin_subtract, INPUT); last_button_state_subtract = LOW;
+  pinMode(button_pin_backspace, INPUT); last_button_state_backspace = LOW;
+  pinMode(button_pin_equals, INPUT); last_button_state_equals = LOW;
+>>>>>>> Stashed changes
 }
 
 void loop() {
@@ -104,17 +122,27 @@ void loop() {
     last_button_state_equals = reading_equals;
 
     if (button_pressed_this_cycle) {
+<<<<<<< Updated upstream
       // Serial.print("Nano sending: "); Serial.println(char_to_send); // Debug
       last_debounce_time = millis(); // Reset debounce timer
+=======
+      char_to_send = current_char_detected; 
+      last_debounce_time = millis(); 
+>>>>>>> Stashed changes
     }
   }
 }
 
 void requestEvent() {
   if (char_to_send != 0) {
+<<<<<<< Updated upstream
     Wire.write(char_to_send);
     // Serial.print("Nano sent: "); Serial.println(char_to_send); // Debug
     char_to_send = 0;
+=======
+    Wire.write(char_to_send); 
+    char_to_send = 0; 
+>>>>>>> Stashed changes
   } else {
     Wire.write((byte)0);
   }
