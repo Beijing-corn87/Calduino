@@ -3,6 +3,7 @@
 #define NANO_SLAVE_ADDRESS 0x08
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 // Define pins for buttons 0-9
 const int button_pins_numbers[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11}; // Pins D2-D11 for 0-9
 // Define pins for other buttons
@@ -11,6 +12,8 @@ const int button_pin_subtract = A1;  // D13
 const int button_pin_backspace = 12; // A0
 const int button_pin_equals = 13;    // A1
 =======
+=======
+>>>>>>> Stashed changes
 const int button_pins_numbers[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 const int button_pin_add = 12;      
 const int button_pin_subtract = 13; 
@@ -40,6 +43,10 @@ unsigned long debounce_delay = 50; // 50ms debounce time
 
 void setup() {
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
+=======
+  char_to_send = 0; 
+>>>>>>> Stashed changes
 =======
   char_to_send = 0; 
 >>>>>>> Stashed changes
@@ -72,6 +79,9 @@ void setup() {
   pinMode(button_pin_subtract, INPUT); last_button_state_subtract = LOW;
   pinMode(button_pin_backspace, INPUT); last_button_state_backspace = LOW;
   pinMode(button_pin_equals, INPUT); last_button_state_equals = LOW;
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
 }
 
